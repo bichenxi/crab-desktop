@@ -128,22 +128,22 @@ export default function SettingsPage() {
             <ArrowLeft size={20} />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">设置</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">设置</h1>
             <p className="text-sm text-gray-500 mt-1">管理应用配置和 AI 模型设置</p>
           </div>
         </div>
 
-        <Separator />
+        <Separator className="dark:bg-white/10" />
 
         {/* AI 模型配置 */}
         <Card>
           <CardHeader>
             <CardTitle>AI 模型配置</CardTitle>
-            <CardDescription>配置 OpenAI 兼容的 API 接口地址和密钥</CardDescription>
+            <CardDescription>配置 OpenAI 兼容的 API 接口地址 and 密钥</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">API 地址</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">API 地址</label>
               <Input
                 value={apiUrl}
                 onChange={(e) => { setApiUrl(e.target.value); setTestResult(null) }}
@@ -162,7 +162,7 @@ export default function SettingsPage() {
                     className={`px-2 py-0.5 text-[11px] rounded-md border transition-all ${
                       apiUrl.includes(preset.baseUrl)
                         ? 'bg-primary/10 border-primary/30 text-primary font-medium'
-                        : 'bg-white/50 border-gray-200 text-gray-400 hover:border-primary/30 hover:text-primary'
+                        : 'bg-white/50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 hover:border-primary/30 hover:text-primary'
                     }`}
                   >
                     {preset.label}
@@ -172,7 +172,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">API Key</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">API Key</label>
               <div className="relative">
                 <Input
                   type={showKey ? 'text' : 'password'}
@@ -184,7 +184,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setShowKey(!showKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -192,7 +192,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">模型</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">模型</label>
               <Input
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
@@ -221,7 +221,7 @@ export default function SettingsPage() {
                         className={`px-2.5 py-1 text-xs rounded-lg border transition-all ${
                           model === m
                             ? 'bg-primary/10 border-primary/30 text-primary font-medium'
-                            : 'bg-white/50 border-gray-200 text-gray-500 hover:border-primary/30 hover:text-primary'
+                            : 'bg-white/50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:border-primary/30 hover:text-primary'
                         }`}
                       >
                         {m}
@@ -257,8 +257,8 @@ export default function SettingsPage() {
               {testResult && (
                 <div className={`flex items-start gap-2 p-3 rounded-xl text-sm ${
                   testResult.ok
-                    ? 'bg-green-50 text-green-700 ring-1 ring-green-200'
-                    : 'bg-red-50 text-red-700 ring-1 ring-red-200'
+                    ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 ring-1 ring-green-200 dark:ring-green-500/20'
+                    : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 ring-1 ring-red-200 dark:ring-red-500/20'
                 }`}>
                   {testResult.ok ? <CheckCircle2 size={16} className="shrink-0 mt-0.5" /> : <XCircle size={16} className="shrink-0 mt-0.5" />}
                   <span className="break-all">{testResult.message}</span>
@@ -283,7 +283,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-700">深色模式</p>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">深色模式</p>
                 <p className="text-xs text-gray-400">切换亮色/深色主题</p>
               </div>
               <Switch
@@ -300,7 +300,7 @@ export default function SettingsPage() {
             <CardTitle>关于</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm text-gray-600">
+            <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <p>版本: 0.1.0</p>
               <p>技术栈: React 19 + Tauri 2 + UnoCSS + shadcn/ui</p>
               <p>状态管理: Zustand</p>

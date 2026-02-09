@@ -12,9 +12,9 @@ const buttonVariants = cva(
         default:
           "bg-gradient-to-br from-primary to-orange-600 text-white shadow-[0_4px_14px_0_rgba(255,144,0,0.39)] hover:shadow-[0_6px_20px_rgba(255,144,0,0.23)] hover:-translate-y-0.5 border-none",
         destructive: "bg-gradient-to-br from-red-500 to-red-600 text-white shadow-md hover:shadow-lg hover:bg-red-600",
-        outline: "border-none bg-white/50 text-gray-700 shadow-sm ring-1 ring-white/10 hover:bg-white hover:text-gray-900 hover:shadow-md backdrop-blur-sm",
-        secondary: "bg-gray-100/80 text-gray-900 hover:bg-gray-200/80 border-none",
-        ghost: "hover:bg-black/5 text-gray-600 hover:text-gray-900",
+        outline: "border-none bg-white/50 dark:bg-white/5 text-gray-700 dark:text-gray-300 shadow-sm ring-1 ring-white/10 hover:bg-white dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-gray-100 hover:shadow-md backdrop-blur-sm",
+        secondary: "bg-gray-100/80 dark:bg-white/10 text-gray-900 dark:text-gray-100 hover:bg-gray-200/80 dark:hover:bg-white/20 border-none",
+        ghost: "hover:bg-black/5 dark:hover:bg-white/5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

@@ -29,13 +29,13 @@ function MessageBubble({ message }: { message: Message }) {
   }
 
   return (
-    <div className={cn('group flex gap-4 py-6 px-4 hover:bg-white/30 transition-colors rounded-2xl relative', isUser ? 'flex-row-reverse' : 'flex-row')}>
-      <Avatar className="h-9 w-9 shrink-0 ring-2 ring-white/50 shadow-sm">
+    <div className={cn('group flex gap-4 py-6 px-4 hover:bg-white/30 dark:hover:bg-white/5 transition-colors rounded-2xl relative', isUser ? 'flex-row-reverse' : 'flex-row')}>
+      <Avatar className="h-9 w-9 shrink-0 ring-2 ring-white/50 dark:ring-white/10 shadow-sm">
         <AvatarFallback
           className={cn(
             isUser
               ? 'bg-gradient-to-br from-primary to-orange-500 text-white shadow-[0_4px_12px_rgba(255,144,0,0.3)]'
-              : 'bg-white/80 text-gray-600 shadow-sm backdrop-blur-sm'
+              : 'bg-white/80 dark:bg-white/10 text-gray-600 dark:text-gray-400 shadow-sm backdrop-blur-sm'
           )}
         >
           {isUser ? <User size={18} /> : <Bot size={18} />}
@@ -43,11 +43,11 @@ function MessageBubble({ message }: { message: Message }) {
       </Avatar>
       <div className={cn('max-w-[75%] min-w-0 flex flex-col', isUser ? 'items-end' : 'items-start')}>
         {isUser ? (
-          <div className="inline-block bg-gradient-to-br from-primary to-orange-500 text-white px-5 py-3.5 rounded-[20px] rounded-tr-sm text-[15px] leading-relaxed whitespace-pre-wrap shadow-[0_8px_24px_rgba(255,144,0,0.2)]">
+          <div className="inline-block bg-gradient-to-br from-primary to-orange-500 text-white px-5 py-3.5 rounded-[20px] rounded-tr-sm text-[15px] leading-relaxed whitespace-pre-wrap shadow-[0_8_24px_rgba(255,144,0,0.2)]">
             {message.content}
           </div>
         ) : (
-          <div className="bg-white/60 backdrop-blur-xl px-5 py-4 rounded-[20px] rounded-tl-sm text-gray-800 shadow-[0_2px_12px_rgba(0,0,0,0.02)] ring-1 ring-white/60">
+          <div className="bg-white/60 dark:bg-white/10 backdrop-blur-xl px-5 py-4 rounded-[20px] rounded-tl-sm text-gray-800 dark:text-gray-200 shadow-[0_2px_12px_rgba(0,0,0,0.02)] ring-1 ring-white/60 dark:ring-white/10">
             {message.loading && !message.content ? (
               <div className="flex items-center gap-1.5 py-1">
                 <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -69,7 +69,7 @@ function MessageBubble({ message }: { message: Message }) {
               variant="ghost"
               size="icon"
               onClick={handleCopy}
-              className="h-7 w-7 rounded-lg hover:bg-white/50 text-gray-400 hover:text-gray-600"
+              className="h-7 w-7 rounded-lg hover:bg-white/50 dark:hover:bg-white/10 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
             >
               {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
             </Button>
@@ -203,9 +203,9 @@ export default function ChatPage() {
   return (
     <div className="h-full flex flex-col relative z-0">
       {/* Header */}
-      <div className="h-20 flex items-center px-8 bg-white/30 backdrop-blur-md shrink-0 sticky top-0 z-10">
+      <div className="h-20 flex items-center px-8 bg-white/30 dark:bg-black/30 backdrop-blur-md shrink-0 sticky top-0 z-10">
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-semibold text-gray-900 truncate tracking-tight">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate tracking-tight">
             {activeConversation?.title || '新对话'}
           </h2>
           <div className="flex items-center gap-2 mt-0.5">
@@ -217,7 +217,7 @@ export default function ChatPage() {
           variant="ghost"
           size="icon"
           onClick={() => navigate('/settings')}
-          className="ml-4 rounded-xl hover:bg-white/50 text-gray-500"
+          className="ml-4 rounded-xl hover:bg-white/50 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400"
         >
           <Settings size={20} />
         </Button>
@@ -226,14 +226,14 @@ export default function ChatPage() {
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-4">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-gray-500 py-20">
-            <div className="mb-8 flex h-20 w-20 items-center justify-center rounded-[24px] bg-gradient-to-br from-white/80 to-white/40 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur-xl ring-1 ring-white/60">
+          <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 py-20">
+            <div className="mb-8 flex h-20 w-20 items-center justify-center rounded-[24px] bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur-xl ring-1 ring-white/60 dark:ring-white/10">
               <Bot size={32} strokeWidth={1.5} className="text-primary" />
             </div>
-            <h2 className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">
+            <h2 className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-400">
               {configReady ? '开始新的对话' : '请先完成配置'}
             </h2>
-            <p className="text-[15px] mt-3 text-gray-500 font-light">
+            <p className="text-[15px] mt-3 text-gray-500 dark:text-gray-400 font-light">
               {configReady ? '探索 AI 的无限可能' : '配置 API 地址、密钥和模型后即可开始'}
             </p>
             {!configReady && (
@@ -262,9 +262,9 @@ export default function ChatPage() {
           <div 
             className={cn(
               "relative group rounded-[28px] transition-all duration-500",
-              "bg-white/80 backdrop-blur-2xl border border-black/[0.08]",
+              "bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-black/[0.08] dark:border-white/10",
               isFocused 
-                ? "shadow-[0_20px_50px_-20px_rgba(0,0,0,0.12)] bg-white border-black/[0.15]" 
+                ? "shadow-[0_20px_50px_-20px_rgba(0,0,0,0.12)] bg-white dark:bg-white/10 border-black/[0.15] dark:border-white/20" 
                 : "shadow-[0_4px_24px_-1px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_30px_-5px_rgba(0,0,0,0.06)]"
             )}
           >
@@ -278,7 +278,7 @@ export default function ChatPage() {
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
                   placeholder="有什么可以帮你的？"
-                  className="min-h-[60px] max-h-[400px] py-4 flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 text-[16px] leading-[1.6] placeholder:text-gray-400/60 resize-none font-normal tracking-tight selection:bg-primary/20 shadow-none focus:shadow-none"
+                  className="min-h-[60px] max-h-[400px] py-4 flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 text-[16px] leading-[1.6] placeholder:text-gray-400/60 dark:placeholder:text-gray-500/60 resize-none font-normal tracking-tight selection:bg-primary/20 shadow-none focus:shadow-none dark:text-gray-100"
                   rows={1}
                 />
                 
@@ -300,8 +300,8 @@ export default function ChatPage() {
                       className={cn(
                         "h-10 w-10 rounded-full transition-all duration-300",
                         input.trim() 
-                          ? "bg-black text-white shadow-lg hover:bg-black/80 hover:scale-105 active:scale-95" 
-                          : "bg-black/[0.05] text-black/10"
+                          ? "bg-black dark:bg-white text-white dark:text-black shadow-lg hover:bg-black/80 dark:hover:bg-white/80 hover:scale-105 active:scale-95" 
+                          : "bg-black/[0.05] dark:bg-white/[0.05] text-black/10 dark:text-white/10"
                       )}
                     >
                       <ArrowUp size={20} strokeWidth={2.5} />
@@ -310,7 +310,7 @@ export default function ChatPage() {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between px-6 pb-3 pt-1 border-t border-black/[0.03]">
+              <div className="flex items-center justify-between px-6 pb-3 pt-1 border-t border-black/[0.03] dark:border-white/[0.03]">
                 <div className="flex items-center gap-1.5">
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -318,7 +318,7 @@ export default function ChatPage() {
                         variant="ghost"
                         size="icon"
                         onClick={handleNewChat}
-                        className="h-7 w-7 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-black/[0.04] transition-all active:scale-90"
+                        className="h-7 w-7 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-black/[0.04] dark:hover:bg-white/5 transition-all active:scale-90"
                       >
                         <Plus size={16} />
                       </Button>
@@ -333,7 +333,7 @@ export default function ChatPage() {
                         size="icon"
                         onClick={handleClearChat}
                         disabled={messages.length === 0}
-                        className="h-7 w-7 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-20 active:scale-90"
+                        className="h-7 w-7 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all disabled:opacity-20 active:scale-90"
                       >
                         <RotateCcw size={14} />
                       </Button>
@@ -343,17 +343,17 @@ export default function ChatPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="px-2 py-0.5 rounded-full bg-black/[0.03] text-[9px] text-gray-400 font-bold uppercase tracking-widest">
+                  <div className="px-2 py-0.5 rounded-full bg-black/[0.03] dark:bg-white/[0.03] text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest">
                     {input.length} CHARS
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <p className="text-[10px] text-gray-400/40 mt-4 text-center font-medium tracking-widest flex items-center justify-center gap-3 uppercase">
-            <span className="w-8 h-[1px] bg-gradient-to-r from-transparent to-black/[0.05]" />
+          <p className="text-[10px] text-gray-400/40 dark:text-gray-500/40 mt-4 text-center font-medium tracking-widest flex items-center justify-center gap-3 uppercase">
+            <span className="w-8 h-[1px] bg-gradient-to-r from-transparent to-black/[0.05] dark:to-white/[0.05]" />
             AI 内容仅供参考
-            <span className="w-8 h-[1px] bg-gradient-to-l from-transparent to-black/[0.05]" />
+            <span className="w-8 h-[1px] bg-gradient-to-l from-transparent to-black/[0.05] dark:to-white/[0.05]" />
           </p>
         </div>
       </div>
