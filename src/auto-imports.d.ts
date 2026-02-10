@@ -6,6 +6,7 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const AVAILABLE_TOOLS: typeof import('./lib/tools').AVAILABLE_TOOLS
   const Activity: typeof import('react').Activity
   const Avatar: typeof import('./components/ui/avatar').Avatar
   const AvatarFallback: typeof import('./components/ui/avatar').AvatarFallback
@@ -64,6 +65,7 @@ declare global {
   const TooltipContent: typeof import('./components/ui/tooltip').TooltipContent
   const TooltipProvider: typeof import('./components/ui/tooltip').TooltipProvider
   const TooltipTrigger: typeof import('./components/ui/tooltip').TooltipTrigger
+  const buildSystemPrompt: typeof import('./lib/tools').buildSystemPrompt
   const buttonVariants: typeof import('./components/ui/button').buttonVariants
   const cache: typeof import('react').cache
   const cacheSignal: typeof import('react').cacheSignal
@@ -73,6 +75,8 @@ declare global {
   const createContext: typeof import('react').createContext
   const createRef: typeof import('react').createRef
   const debounce: typeof import('./lib/utils').debounce
+  const executeTool: typeof import('./lib/tool-executor').executeTool
+  const executeTools: typeof import('./lib/tool-executor').executeTools
   const fetchSSE: typeof import('./lib/ai-stream').fetchSSE
   const formatDate: typeof import('./lib/utils').formatDate
   const forwardRef: typeof import('react').forwardRef
@@ -128,4 +132,7 @@ declare global {
   // @ts-ignore
   export type { StreamOptions } from './lib/ai-stream'
   import('./lib/ai-stream')
+  // @ts-ignore
+  export type { ToolFunction, ToolDefinition, ToolCallChunk, ParsedToolCall, ToolResult } from './lib/tools'
+  import('./lib/tools')
 }

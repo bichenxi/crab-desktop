@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ArrowUp, Square, Bot, User, Settings, Plus, RotateCcw, Copy, Check } from 'lucide-react'
+import { ArrowUp, Square, Bot, User, Settings, Plus, RotateCcw, Copy, Check, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,11 +11,17 @@ import { createAIRequest } from '@/lib/ai-stream'
 import { cn } from '@/lib/utils'
 import { useAutoScroll } from '@/hooks/useAutoScroll'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { AVAILABLE_TOOLS, buildSystemPrompt } from '@/lib/tools'
+import { executeTools } from '@/lib/tool-executor'
+import { fileService } from '@/services/tauri/files'
 
 const aiRequest = createAIRequest()
 
+// ========== 消息气泡组件 ==========
+
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user'
+  const isTool = message.role === 'tool'
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -26,6 +32,25 @@ function MessageBubble({ message }: { message: Message }) {
     } catch (err) {
       console.error('Failed to copy text: ', err)
     }
+  }
+
+  // 工具执行结果：显示为紧凑的系统消息
+  if (isTool) {
+    return (
+      <div className="flex items-start gap-3 py-3 px-4">
+        <div className="h-7 w-7 shrink-0 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+          <Wrench size={14} className="text-amber-600 dark:text-amber-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">
+            工具执行: {message.tool_name || '未知'}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400 bg-amber-50/50 dark:bg-amber-900/10 rounded-xl px-4 py-2.5 ring-1 ring-amber-200/50 dark:ring-amber-800/30">
+            <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed">{message.content}</pre>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -80,10 +105,13 @@ function MessageBubble({ message }: { message: Message }) {
   )
 }
 
+// ========== 主页面组件 ==========
+
 export default function ChatPage() {
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
+  const [homeDir, setHomeDir] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const navigate = useNavigate()
   const { apiUrl, apiKey, model } = useConfigStore()
@@ -104,6 +132,11 @@ export default function ChatPage() {
 
   const { ref: scrollRef } = useAutoScroll<HTMLDivElement>([messages])
 
+  // 获取用户主目录
+  useEffect(() => {
+    fileService.getHomeDir().then(setHomeDir).catch(console.error)
+  }, [])
+
   // 自动聚焦输入框
   useEffect(() => {
     textareaRef.current?.focus()
@@ -123,6 +156,141 @@ export default function ChatPage() {
 
   const configReady = isConfigReady({ apiUrl, apiKey, model })
 
+  /**
+   * 构建发给 API 的消息列表
+   * 包含 system prompt、历史消息（含 tool 角色消息）
+   */
+  const buildApiMessages = (
+    existingMessages: Message[],
+    newUserContent?: string
+  ) => {
+    const systemMessage = homeDir
+      ? { role: 'system' as const, content: buildSystemPrompt(homeDir) }
+      : null
+
+    const history = existingMessages
+      .filter((m) => m.content && !m.content.startsWith('请求失败'))
+      .map((m) => {
+        const base: Record<string, unknown> = { role: m.role, content: m.content }
+        // assistant 消息如果有 tool_calls，需要附带
+        if (m.role === 'assistant' && m.tool_calls) {
+          base.tool_calls = m.tool_calls
+          // OpenAI 要求有 tool_calls 时 content 可以为 null
+          if (!m.content) base.content = null
+        }
+        // tool 角色消息需要带 tool_call_id
+        if (m.role === 'tool' && m.tool_call_id) {
+          base.tool_call_id = m.tool_call_id
+        }
+        return base
+      })
+
+    const msgs = []
+    if (systemMessage) msgs.push(systemMessage)
+    msgs.push(...history)
+    if (newUserContent) msgs.push({ role: 'user', content: newUserContent })
+    return msgs
+  }
+
+  /**
+   * 核心：发送一轮 AI 请求
+   * 返回值: { hasToolCalls: boolean } 用于判断是否需要继续循环
+   */
+  const sendOneRound = async (
+    convId: string,
+    messagesForApi: Record<string, unknown>[],
+  ): Promise<{ hasToolCalls: boolean }> => {
+    // 添加 AI 消息占位
+    const aiMsgId = addMessage(convId, { role: 'assistant', content: '', loading: true })
+
+    const latestConfig = useConfigStore.getState()
+    const requestUrl = normalizeApiUrl(latestConfig.apiUrl)
+    const requestModel = latestConfig.model
+    const requestKey = latestConfig.apiKey
+
+    let fullContent = ''
+
+    return new Promise<{ hasToolCalls: boolean }>((resolve) => {
+      aiRequest.send({
+        url: requestUrl,
+        headers: {
+          Authorization: `Bearer ${requestKey}`,
+        },
+        body: {
+          model: requestModel,
+          messages: messagesForApi,
+          stream: true,
+        },
+        tools: AVAILABLE_TOOLS,
+        onMessage: (chunk, done) => {
+          if (done) {
+            setMessageLoading(convId, aiMsgId, false)
+            resolve({ hasToolCalls: false })
+            return
+          }
+          fullContent += chunk
+          updateMessage(convId, aiMsgId, fullContent)
+        },
+        onToolCalls: async (toolCalls) => {
+          // 更新 assistant 消息，显示"正在执行..."，并存储 tool_calls 数据
+          const toolCallsData = toolCalls.map((tc) => ({
+            id: tc.id,
+            type: 'function' as const,
+            function: {
+              name: tc.name,
+              arguments: JSON.stringify(tc.arguments),
+            },
+          }))
+
+          // 更新 AI 消息：附带 tool_calls 元数据
+          const store = useChatStore.getState()
+          store.conversations.forEach((c) => {
+            if (c.id === convId) {
+              c.messages.forEach((m) => {
+                if (m.id === aiMsgId) {
+                  m.tool_calls = toolCallsData
+                  m.loading = false
+                  if (!m.content) {
+                    m.content = toolCalls
+                      .map((tc) => `🔧 调用工具: ${tc.name}`)
+                      .join('\n')
+                  }
+                }
+              })
+            }
+          })
+          // 手动触发状态更新
+          useChatStore.setState({ conversations: [...store.conversations] })
+
+          // 执行工具调用
+          const results = await executeTools(toolCalls)
+
+          // 将每个工具结果作为 tool 角色消息添加到对话中
+          for (const result of results) {
+            addMessage(convId, {
+              role: 'tool',
+              content: result.result,
+              tool_call_id: result.tool_call_id,
+              tool_name: result.name,
+            })
+          }
+
+          resolve({ hasToolCalls: true })
+        },
+        onError: (error) => {
+          const time = new Date().toLocaleTimeString()
+          const errorDetail = `请求失败 (${time}): ${error.message}\n\n当前配置:\n- 地址: ${requestUrl}\n- 模型: ${requestModel}`
+          updateMessage(convId, aiMsgId, errorDetail)
+          setMessageLoading(convId, aiMsgId, false)
+          resolve({ hasToolCalls: false })
+        },
+      })
+    })
+  }
+
+  /**
+   * 完整的发送流程：支持多轮工具调用循环
+   */
   const handleSend = async () => {
     const content = input.trim()
     if (!content || isStreaming) return
@@ -141,51 +309,33 @@ export default function ChatPage() {
     // 添加用户消息
     addMessage(convId, { role: 'user', content })
     setInput('')
-
-    // 添加 AI 消息占位
-    const aiMsgId = addMessage(convId, { role: 'assistant', content: '', loading: true })
-
     setIsStreaming(true)
-    let fullContent = ''
 
-    // 直接从 store 获取最新配置
-    const latestConfig = useConfigStore.getState()
-    const requestUrl = normalizeApiUrl(latestConfig.apiUrl)
-    const requestModel = latestConfig.model
-    const requestKey = latestConfig.apiKey
+    try {
+      // 构建初始 API 消息
+      const currentConv = useChatStore.getState().conversations.find((c) => c.id === convId)
+      let apiMessages = buildApiMessages(
+        currentConv?.messages.slice(0, -1) ?? [], // 排除刚添加的用户消息（因为下面会手动加）
+        content,
+      )
 
-    await aiRequest.send({
-      url: requestUrl,
-      headers: {
-        Authorization: `Bearer ${requestKey}`,
-      },
-      body: {
-        model: requestModel,
-        messages: [
-          ...(activeConversation?.messages ?? [])
-            .filter((m) => m.role !== 'system' && m.content && !m.content.startsWith('请求失败'))
-            .map((m) => ({ role: m.role, content: m.content })),
-          { role: 'user', content },
-        ],
-        stream: true,
-      },
-      onMessage: (chunk, done) => {
-        if (done) {
-          setMessageLoading(convId!, aiMsgId, false)
-          setIsStreaming(false)
-          return
-        }
-        fullContent += chunk
-        updateMessage(convId!, aiMsgId, fullContent)
-      },
-      onError: (error) => {
-        const time = new Date().toLocaleTimeString()
-        const errorDetail = `请求失败 (${time}): ${error.message}\n\n当前配置:\n- 地址: ${requestUrl}\n- 模型: ${requestModel}`
-        updateMessage(convId!, aiMsgId, errorDetail)
-        setMessageLoading(convId!, aiMsgId, false)
-        setIsStreaming(false)
-      },
-    })
+      // 工具调用循环：最多 5 轮，防止无限循环
+      let round = 0
+      const MAX_ROUNDS = 5
+      while (round < MAX_ROUNDS) {
+        round++
+        const { hasToolCalls } = await sendOneRound(convId, apiMessages)
+
+        if (!hasToolCalls) break // AI 没有调用工具，直接结束
+
+        // AI 调用了工具，结果已经添加到对话中
+        // 重新构建消息列表（包含工具结果），发起下一轮
+        const updatedConv = useChatStore.getState().conversations.find((c) => c.id === convId)
+        apiMessages = buildApiMessages(updatedConv?.messages ?? [])
+      }
+    } finally {
+      setIsStreaming(false)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -211,6 +361,12 @@ export default function ChatPage() {
           <div className="flex items-center gap-2 mt-0.5">
             <span className={cn("w-1.5 h-1.5 rounded-full", configReady ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-gray-300")}></span>
             <span className="text-xs text-gray-500 font-medium">{model || '未配置'}</span>
+            {homeDir && (
+              <>
+                <span className="text-gray-300 dark:text-gray-600">·</span>
+                <span className="text-xs text-gray-400 font-medium">🔧 工具已启用</span>
+              </>
+            )}
           </div>
         </div>
         <Button
@@ -234,7 +390,9 @@ export default function ChatPage() {
               {configReady ? '开始新的对话' : '请先完成配置'}
             </h2>
             <p className="text-[15px] mt-3 text-gray-500 dark:text-gray-400 font-light">
-              {configReady ? '探索 AI 的无限可能' : '配置 API 地址、密钥和模型后即可开始'}
+              {configReady
+                ? '试试说："在桌面上建一个叫 todo 的笔记" 或 "帮我看看桌面上有什么文件"'
+                : '配置 API 地址、密钥和模型后即可开始'}
             </p>
             {!configReady && (
               <Button
@@ -277,7 +435,7 @@ export default function ChatPage() {
                   onKeyDown={handleKeyDown}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
-                  placeholder="有什么可以帮你的？"
+                  placeholder="试试说: 在桌面上建一个笔记、帮我看看文档目录有什么文件..."
                   className="min-h-[60px] max-h-[400px] py-4 flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 text-[16px] leading-[1.6] placeholder:text-gray-400/60 dark:placeholder:text-gray-500/60 resize-none font-normal tracking-tight selection:bg-primary/20 shadow-none focus:shadow-none dark:text-gray-100"
                   rows={1}
                 />
@@ -352,7 +510,7 @@ export default function ChatPage() {
           </div>
           <p className="text-[10px] text-gray-400/40 dark:text-gray-500/40 mt-4 text-center font-medium tracking-widest flex items-center justify-center gap-3 uppercase">
             <span className="w-8 h-[1px] bg-gradient-to-r from-transparent to-black/[0.05] dark:to-white/[0.05]" />
-            AI 内容仅供参考
+            AI 内容仅供参考 · 文件操作限于桌面/文档/下载目录
             <span className="w-8 h-[1px] bg-gradient-to-l from-transparent to-black/[0.05] dark:to-white/[0.05]" />
           </p>
         </div>

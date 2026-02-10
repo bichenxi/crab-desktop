@@ -4,10 +4,20 @@ import { nanoid } from '@/lib/utils'
 
 export interface Message {
   id: string
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant' | 'system' | 'tool'
   content: string
   createdAt: number
   loading?: boolean
+  /** assistant 消息中 AI 发起的工具调用 */
+  tool_calls?: Array<{
+    id: string
+    type: 'function'
+    function: { name: string; arguments: string }
+  }>
+  /** tool 消息对应的工具调用 ID */
+  tool_call_id?: string
+  /** tool 消息对应的工具名称 */
+  tool_name?: string
 }
 
 export interface Conversation {
