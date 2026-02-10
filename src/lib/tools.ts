@@ -1,103 +1,30 @@
 /**
  * AI Tool Calling 协议定义
  *
- * 定义了所有可供 AI 调用的工具，以及 OpenAI 兼容的 tools 参数格式。
- * 同时提供 System Prompt，告知 AI 它拥有哪些能力。
+ * 工具列表来自技能注册表（内置 + 已安装），与 OpenAI 兼容的 tools 格式。
  */
 
-// ========== 工具定义 (OpenAI Function Calling 格式) ==========
+import { getAllSkills } from '@/skills/registry'
+import { skillToToolDefinition } from '@/skills/types'
+import type { ToolDefinition } from '@/skills/types'
+import { useSkillsStore } from '@/stores/skills'
 
-export interface ToolFunction {
-  name: string
-  description: string
-  parameters: Record<string, unknown>
+// ========== 工具定义（由技能注册表 + 用户启用的技能 动态生成） ==========
+
+/** 获取当前对 AI 开放的工具（仅包含用户已启用的技能；空=全部启用；含 __none__=全部关闭） */
+export function getAvailableTools(): ToolDefinition[] {
+  const enabledIds = useSkillsStore.getState().enabledSkillIds
+  if (enabledIds.includes('__none__')) return []
+  const all = getAllSkills()
+  const list = enabledIds.length === 0 ? all : all.filter((s) => enabledIds.includes(s.id))
+  return list.map(skillToToolDefinition)
 }
 
-export interface ToolDefinition {
-  type: 'function'
-  function: ToolFunction
-}
+/** 兼容旧引用：等同于 getAvailableTools() 的首次结果 */
+export const AVAILABLE_TOOLS: ToolDefinition[] = getAvailableTools()
 
-/** 所有可用工具的定义 */
-export const AVAILABLE_TOOLS: ToolDefinition[] = [
-  {
-    type: 'function',
-    function: {
-      name: 'create_file',
-      description:
-        '在用户电脑上创建一个文件。只能在安全目录下创建（Desktop, Documents, Downloads）。',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {
-            type: 'string',
-            description:
-              '文件的完整绝对路径，例如 /Users/用户名/Desktop/note.txt。必须在 Desktop、Documents 或 Downloads 目录下。',
-          },
-          content: {
-            type: 'string',
-            description: '文件的内容',
-          },
-        },
-        required: ['path', 'content'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'read_file',
-      description:
-        '读取用户电脑上的一个文件内容。只能读取安全目录下的文件（Desktop, Documents, Downloads）。',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {
-            type: 'string',
-            description: '文件的完整绝对路径',
-          },
-        },
-        required: ['path'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'list_files',
-      description:
-        '列出用户电脑上某个目录下的所有文件和文件夹名称。只能列出安全目录下的内容（Desktop, Documents, Downloads）。',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {
-            type: 'string',
-            description: '目录的完整绝对路径',
-          },
-        },
-        required: ['path'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'delete_file',
-      description:
-        '删除用户电脑上的一个文件。只能删除安全目录下的文件（Desktop, Documents, Downloads），不能删除目录。',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {
-            type: 'string',
-            description: '要删除的文件的完整绝对路径',
-          },
-        },
-        required: ['path'],
-      },
-    },
-  },
-]
+// 兼容旧引用：若别处用了 tools.ToolFunction，从 types 导出
+export type { ToolDefinition } from '@/skills/types'
 
 // ========== System Prompt ==========
 
@@ -112,7 +39,8 @@ export function buildSystemPrompt(homeDir: string): string {
 1. **创建文件**: 在用户的桌面(Desktop)、文档(Documents)或下载(Downloads)目录下创建文件。
 2. **读取文件**: 读取上述目录下的文件内容，并对内容进行总结或分析。
 3. **列出文件**: 查看上述目录下有哪些文件。
-4. **删除文件**: 删除上述目录下的某个文件（仅限文件，不能删目录）。
+4. **删除文件**: 删除上述目录下的某个文件（移至回收站）。
+5. **删除文件夹**: 删除上述目录下的整个文件夹（整目录移至回收站，含内部所有文件）。
 
 ## 重要规则
 - 用户的主目录是: ${homeDir}
@@ -127,7 +55,9 @@ export function buildSystemPrompt(homeDir: string): string {
 - 如果用户没指定文件名后缀，创建文本文件时默认使用 .txt，Markdown 用 .md。
 - 当你需要操作文件时，请使用工具调用。不要只是描述步骤，要实际执行。
 - 执行完工具调用后，用简洁友好的语言告诉用户结果。
-- **删除文件**：当用户说"删掉/删除 桌面/文档/下载 上的 xxx"时，你必须调用 delete_file 工具，传入完整路径（如 ${homeDir}/Desktop/文件名），不要只回复文字而不执行。`
+- **删除文件**：当用户说"删掉/删除 桌面/文档/下载 上的 xxx 文件"时，调用 delete_file，传入完整路径。
+- **删除文件夹**：当用户说"删掉/删除 桌面/文档/下载 上的 xxx 文件夹"时，调用 delete_dir，传入完整路径（如 ${homeDir}/Desktop/文件夹名），不要只列出文件或说不能删文件夹。
+- **创建多个文件**：当用户要求「生成 N 个/条 文件到某文件夹」时，你必须多次调用 create_file 工具（每个文件调用一次），不要只执行 list_files 就停止。创建路径如 ${homeDir}/Desktop/文件夹名/文件名 时，文件夹会自动被创建，无需先创建文件夹。`
 }
 
 // ========== AI 响应中的 Tool Call 结构 ==========

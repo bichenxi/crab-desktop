@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, XCircle, Puzzle, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -134,6 +134,24 @@ export default function SettingsPage() {
         </div>
 
         <Separator className="dark:bg-white/10" />
+
+        {/* 技能管理入口 */}
+        <button
+          type="button"
+          onClick={() => navigate('/skills')}
+          className="w-full flex items-center justify-between gap-4 rounded-xl p-4 text-left border border-black/[0.06] dark:border-white/10 bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Puzzle size={20} className="text-primary" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900 dark:text-gray-100">技能管理</p>
+              <p className="text-sm text-gray-500">选择对话中可供 AI 使用的工具</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-gray-400 shrink-0" />
+        </button>
 
         {/* AI 模型配置 */}
         <Card>

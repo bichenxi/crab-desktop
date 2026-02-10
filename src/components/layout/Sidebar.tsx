@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { MessageSquare, Settings, PanelLeftClose, PanelLeft, Plus, Trash2 } from 'lucide-react'
+import { MessageSquare, Settings, PanelLeftClose, PanelLeft, Plus, Trash2, Puzzle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/app'
 import { useChatStore } from '@/stores/chat'
@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 const navItems = [
   { path: '/chat', label: '对话', icon: MessageSquare },
+  { path: '/skills', label: '技能', icon: Puzzle },
   { path: '/settings', label: '设置', icon: Settings },
 ]
 

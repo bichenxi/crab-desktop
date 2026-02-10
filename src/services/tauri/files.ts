@@ -7,6 +7,7 @@ export interface FileService {
   createFile: (path: string, content: string) => Promise<string>;
   readFile: (path: string) => Promise<string>;
   deleteFile: (path: string) => Promise<string>;
+  deleteDir: (path: string) => Promise<string>;
 }
 
 export const fileService: FileService = {
@@ -24,5 +25,8 @@ export const fileService: FileService = {
   },
   deleteFile: async (path: string) => {
     return await invoke<string>("delete_file", { path });
+  },
+  deleteDir: async (path: string) => {
+    return await invoke<string>("delete_dir", { path });
   },
 };

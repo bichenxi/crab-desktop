@@ -1,0 +1,3 @@
+# 已安装技能目录（预留）
+# 后续可从 ClawHub 或本地包安装技能，并在此目录放置 skill 模块，
+# 由 registry 在启动时扫描并 registerSkill() 注册。

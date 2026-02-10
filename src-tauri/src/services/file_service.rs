@@ -106,7 +106,8 @@ pub fn read_file_content(path: &str) -> Result<String, String> {
     fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))
 }
 
-/// 删除文件（仅限安全目录下的文件，不允许删除目录）
+/// 删除文件：移动到系统回收站（macOS 废纸篓 / Windows 回收站），不永久删除
+/// 仅限安全目录下的文件，不允许删除目录
 pub fn delete_file(path: &str) -> Result<String, String> {
     let path_obj = Path::new(path);
     validate_path_safety(path_obj)?;
@@ -119,6 +120,39 @@ pub fn delete_file(path: &str) -> Result<String, String> {
         return Err("Cannot delete directories; only files are allowed.".to_string());
     }
 
-    fs::remove_file(path).map_err(|e| format!("Failed to delete file: {}", e))?;
-    Ok(format!("File deleted successfully: {}", path))
+    trash::delete(path).map_err(|e| map_trash_error(&e, path, false))?;
+    Ok(format!("已移至回收站: {}", path))
+}
+
+/// 删除文件夹：整目录移动到系统回收站（含内部所有文件），不永久删除
+/// 仅限安全目录下的文件夹
+pub fn delete_directory(path: &str) -> Result<String, String> {
+    let path_obj = Path::new(path);
+    validate_path_safety(path_obj)?;
+
+    if !path_obj.exists() {
+        return Err(format!("Directory not found: {}", path));
+    }
+
+    if !path_obj.is_dir() {
+        return Err("Path is not a directory; use delete_file for files.".to_string());
+    }
+
+    trash::delete(path).map_err(|e| map_trash_error(&e, path, true))?;
+    Ok(format!("文件夹已移至回收站: {}", path))
+}
+
+/// 将系统/trash 库的错误转为对用户更友好的提示（如 iCloud 需先下载）
+fn map_trash_error(e: &impl std::fmt::Display, path: &str, is_dir: bool) -> String {
+    let msg = e.to_string();
+    let lower = msg.to_lowercase();
+    // iCloud 占位符未下载、系统提示“需要下载”等
+    if msg.contains("下载") || lower.contains("download") || lower.contains("icloud") {
+        let kind = if is_dir { "文件夹" } else { "文件" };
+        return format!(
+            "该{}可能在 iCloud 中尚未下载到本地，无法直接移入废纸篓。请先在「访达」中打开并等待下载完成，再拖入废纸篓删除。",
+            kind
+        );
+    }
+    format!("移入回收站失败: {}", msg)
 }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ArrowUp, Square, Bot, User, Settings, Plus, RotateCcw, Copy, Check, Wrench } from 'lucide-react'
+import { ArrowUp, Square, Bot, User, Settings, Plus, RotateCcw, Copy, Check, Wrench, Puzzle, ChevronDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,8 +11,18 @@ import { createAIRequest } from '@/lib/ai-stream'
 import { cn } from '@/lib/utils'
 import { useAutoScroll } from '@/hooks/useAutoScroll'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { AVAILABLE_TOOLS, buildSystemPrompt } from '@/lib/tools'
-import { parseDeleteFileIntent } from '@/lib/delete-intent'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { getAvailableTools, buildSystemPrompt } from '@/lib/tools'
+import { parseDeleteFileIntent, parseDeleteDirIntent } from '@/lib/delete-intent'
+import {
+  parseGenerateFilesIntent,
+  executeGenerateFilesIntent,
+} from '@/lib/generate-files-intent'
 import { executeTools } from '@/lib/tool-executor'
 import { fileService } from '@/services/tauri/files'
 
@@ -126,6 +136,7 @@ export default function ChatPage() {
     getActiveConversation,
     setActiveConversation,
     clearMessages,
+    conversations,
   } = useChatStore()
 
   const activeConversation = getActiveConversation()
@@ -230,7 +241,7 @@ export default function ChatPage() {
           messages: messagesForApi,
           stream: true,
         },
-        tools: AVAILABLE_TOOLS,
+        tools: getAvailableTools(),
         onMessage: (chunk, done) => {
           if (done) {
             setMessageLoading(convId, aiMsgId, false)
@@ -321,7 +332,7 @@ export default function ChatPage() {
     setIsStreaming(true)
 
     try {
-      // 删除意图兜底：用户明确说「删掉桌面上的 xxx」时直接执行删除，不依赖 AI 是否调用工具
+      // 删除文件意图兜底：用户明确说「删掉桌面上的 xxx」时直接执行
       const deletePath = homeDir ? parseDeleteFileIntent(content, homeDir) : null
       if (deletePath) {
         try {
@@ -330,6 +341,41 @@ export default function ChatPage() {
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
           addMessage(convId, { role: 'assistant', content: `删除失败：${msg}` })
+        }
+        setIsStreaming(false)
+        return
+      }
+
+      // 删除文件夹意图兜底：用户说「删掉桌面上的 xxx 文件夹」时直接执行
+      const deleteDirPath = homeDir ? parseDeleteDirIntent(content, homeDir) : null
+      if (deleteDirPath) {
+        try {
+          const result = await fileService.deleteDir(deleteDirPath)
+          addMessage(convId, { role: 'assistant', content: `已删除文件夹。\n\n${result}` })
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          addMessage(convId, { role: 'assistant', content: `删除失败：${msg}` })
+        }
+        setIsStreaming(false)
+        return
+      }
+
+      // 生成多个文件意图兜底：用户说「生成 N 条/个 文件到桌面 xxx 文件夹」时直接创建文件
+      const genIntent = homeDir ? parseGenerateFilesIntent(content, homeDir) : null
+      if (genIntent) {
+        try {
+          const { success, failed, paths } = await executeGenerateFilesIntent(
+            genIntent,
+            fileService.createFile.bind(fileService)
+          )
+          const summary =
+            failed === 0
+              ? `已在 **${genIntent.folderName}** 文件夹中创建 ${success} 个文件。\n\n路径：\n${paths.slice(0, 10).map((p) => `- ${p}`).join('\n')}${paths.length > 10 ? `\n... 共 ${paths.length} 个` : ''}`
+              : `已创建 ${success} 个文件，失败 ${failed} 个。\n\n成功：\n${paths.map((p) => `- ${p}`).join('\n')}`
+          addMessage(convId, { role: 'assistant', content: summary })
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          addMessage(convId, { role: 'assistant', content: `创建失败：${msg}` })
         }
         setIsStreaming(false)
         return
@@ -378,9 +424,39 @@ export default function ChatPage() {
       {/* Header */}
       <div className="h-20 flex items-center px-8 bg-white/30 dark:bg-black/30 backdrop-blur-md shrink-0 sticky top-0 z-10">
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate tracking-tight">
-            {activeConversation?.title || '新对话'}
-          </h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 text-base font-semibold text-gray-900 dark:text-gray-100 truncate tracking-tight hover:opacity-80 transition-opacity">
+                <span className="truncate">{activeConversation?.title || '新对话'}</span>
+                <ChevronDown size={16} className="shrink-0 text-gray-400" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              {conversations.map((conv) => (
+                <DropdownMenuItem
+                  key={conv.id}
+                  onClick={() => {
+                    setActiveConversation(conv.id)
+                    navigate('/chat')
+                  }}
+                  className={cn(activeConversationId === conv.id && 'bg-primary/10 text-primary')}
+                >
+                  <span className="truncate">{conv.title}</span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuItem
+                onClick={() => {
+                  const id = createConversation()
+                  setActiveConversation(id)
+                  navigate('/chat')
+                }}
+                className="text-primary font-medium"
+              >
+                <Plus size={14} className="mr-2" />
+                新建对话
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="flex items-center gap-2 mt-0.5">
             <span className={cn("w-1.5 h-1.5 rounded-full", configReady ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-gray-300")}></span>
             <span className="text-xs text-gray-500 font-medium">{model || '未配置'}</span>
@@ -392,14 +468,34 @@ export default function ChatPage() {
             )}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/settings')}
-          className="ml-4 rounded-xl hover:bg-white/50 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400"
-        >
-          <Settings size={20} />
-        </Button>
+        <div className="flex items-center gap-1 ml-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/skills')}
+                className="rounded-xl hover:bg-white/50 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400"
+              >
+                <Puzzle size={20} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">技能管理</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/settings')}
+                className="rounded-xl hover:bg-white/50 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400"
+              >
+                <Settings size={20} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">设置</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       {/* Messages */}

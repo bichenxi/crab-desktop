@@ -75,15 +75,19 @@ declare global {
   const createContext: typeof import('react').createContext
   const createRef: typeof import('react').createRef
   const debounce: typeof import('./lib/utils').debounce
+  const executeGenerateFilesIntent: typeof import('./lib/generate-files-intent').executeGenerateFilesIntent
   const executeTool: typeof import('./lib/tool-executor').executeTool
   const executeTools: typeof import('./lib/tool-executor').executeTools
   const fetchSSE: typeof import('./lib/ai-stream').fetchSSE
   const formatDate: typeof import('./lib/utils').formatDate
   const forwardRef: typeof import('react').forwardRef
+  const getAvailableTools: typeof import('./lib/tools').getAvailableTools
   const lazy: typeof import('react').lazy
   const memo: typeof import('react').memo
   const nanoid: typeof import('./lib/utils').nanoid
+  const parseDeleteDirIntent: typeof import('./lib/delete-intent').parseDeleteDirIntent
   const parseDeleteFileIntent: typeof import('./lib/delete-intent').parseDeleteFileIntent
+  const parseGenerateFilesIntent: typeof import('./lib/generate-files-intent').parseGenerateFilesIntent
   const startTransition: typeof import('react').startTransition
   const throttle: typeof import('./lib/utils').throttle
   const use: typeof import('react').use
@@ -134,6 +138,9 @@ declare global {
   export type { StreamOptions } from './lib/ai-stream'
   import('./lib/ai-stream')
   // @ts-ignore
-  export type { ToolFunction, ToolDefinition, ToolCallChunk, ParsedToolCall, ToolResult } from './lib/tools'
+  export type { GenerateFilesIntent } from './lib/generate-files-intent'
+  import('./lib/generate-files-intent')
+  // @ts-ignore
+  export type { ToolCallChunk, ParsedToolCall, ToolResult, ToolDefinition } from './lib/tools'
   import('./lib/tools')
 }
