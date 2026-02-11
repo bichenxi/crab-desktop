@@ -143,7 +143,7 @@ pub fn delete_directory(path: &str) -> Result<String, String> {
 }
 
 /// 将系统/trash 库的错误转为对用户更友好的提示（如 iCloud 需先下载）
-fn map_trash_error(e: &impl std::fmt::Display, path: &str, is_dir: bool) -> String {
+fn map_trash_error(e: &impl std::fmt::Display, _path: &str, is_dir: bool) -> String {
     let msg = e.to_string();
     let lower = msg.to_lowercase();
     // iCloud 占位符未下载、系统提示“需要下载”等

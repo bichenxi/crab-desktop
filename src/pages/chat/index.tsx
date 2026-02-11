@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ArrowUp, Square, Bot, User, Settings, Plus, RotateCcw, Copy, Check, Wrench, Puzzle, ChevronDown } from 'lucide-react'
+import { ArrowUp, Square, Bot, User, Settings, Plus, RotateCcw, Copy, Check, Wrench, ChevronDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -172,10 +172,7 @@ export default function ChatPage() {
    * 构建发给 API 的消息列表
    * 包含 system prompt、历史消息（含 tool 角色消息）
    */
-  const buildApiMessages = (
-    existingMessages: Message[],
-    newUserContent?: string
-  ) => {
+  const buildApiMessages = (existingMessages: Message[], newUserContent?: string) => {
     const systemMessage = homeDir
       ? { role: 'system' as const, content: buildSystemPrompt(homeDir) }
       : null
@@ -381,11 +378,10 @@ export default function ChatPage() {
         return
       }
 
-      // 构建初始 API 消息
       const currentConv = useChatStore.getState().conversations.find((c) => c.id === convId)
       let apiMessages = buildApiMessages(
         currentConv?.messages.slice(0, -1) ?? [], // 排除刚添加的用户消息（因为下面会手动加）
-        content,
+        content
       )
 
       // 工具调用循环：最多 5 轮，防止无限循环
@@ -400,7 +396,7 @@ export default function ChatPage() {
         // AI 调用了工具，结果已经添加到对话中
         // 重新构建消息列表（包含工具结果），发起下一轮
         const updatedConv = useChatStore.getState().conversations.find((c) => c.id === convId)
-        apiMessages = buildApiMessages(updatedConv?.messages ?? [])
+        apiMessages = buildApiMessages(updatedConv?.messages ?? [], undefined)
       }
     } finally {
       setIsStreaming(false)
@@ -469,19 +465,6 @@ export default function ChatPage() {
           </div>
         </div>
         <div className="flex items-center gap-1 ml-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/skills')}
-                className="rounded-xl hover:bg-white/50 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400"
-              >
-                <Puzzle size={20} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">技能管理</TooltipContent>
-          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

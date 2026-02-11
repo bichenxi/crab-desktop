@@ -7,17 +7,12 @@
 import { getAllSkills } from '@/skills/registry'
 import { skillToToolDefinition } from '@/skills/types'
 import type { ToolDefinition } from '@/skills/types'
-import { useSkillsStore } from '@/stores/skills'
 
-// ========== 工具定义（由技能注册表 + 用户启用的技能 动态生成） ==========
+// ========== 工具定义（由技能注册表动态生成） ==========
 
-/** 获取当前对 AI 开放的工具（仅包含用户已启用的技能；空=全部启用；含 __none__=全部关闭） */
+/** 获取当前对 AI 开放的工具（全部内置工具） */
 export function getAvailableTools(): ToolDefinition[] {
-  const enabledIds = useSkillsStore.getState().enabledSkillIds
-  if (enabledIds.includes('__none__')) return []
-  const all = getAllSkills()
-  const list = enabledIds.length === 0 ? all : all.filter((s) => enabledIds.includes(s.id))
-  return list.map(skillToToolDefinition)
+  return getAllSkills().map(skillToToolDefinition)
 }
 
 /** 兼容旧引用：等同于 getAvailableTools() 的首次结果 */
@@ -33,7 +28,7 @@ export type { ToolDefinition } from '@/skills/types'
  * @param homeDir 用户主目录路径，用于让 AI 知道如何构建路径
  */
 export function buildSystemPrompt(homeDir: string): string {
-  return `你是一个智能桌面助手，运行在用户的电脑上。你可以通过工具调用来帮助用户操作文件。
+  const base = `你是一个智能桌面助手，运行在用户的电脑上。你可以通过工具调用来帮助用户操作文件。
 
 ## 你的能力
 1. **创建文件**: 在用户的桌面(Desktop)、文档(Documents)或下载(Downloads)目录下创建文件。
@@ -58,6 +53,7 @@ export function buildSystemPrompt(homeDir: string): string {
 - **删除文件**：当用户说"删掉/删除 桌面/文档/下载 上的 xxx 文件"时，调用 delete_file，传入完整路径。
 - **删除文件夹**：当用户说"删掉/删除 桌面/文档/下载 上的 xxx 文件夹"时，调用 delete_dir，传入完整路径（如 ${homeDir}/Desktop/文件夹名），不要只列出文件或说不能删文件夹。
 - **创建多个文件**：当用户要求「生成 N 个/条 文件到某文件夹」时，你必须多次调用 create_file 工具（每个文件调用一次），不要只执行 list_files 就停止。创建路径如 ${homeDir}/Desktop/文件夹名/文件名 时，文件夹会自动被创建，无需先创建文件夹。`
+  return base
 }
 
 // ========== AI 响应中的 Tool Call 结构 ==========
